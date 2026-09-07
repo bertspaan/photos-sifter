@@ -101,15 +101,18 @@
 
   const fmt = (n: number) => n.toLocaleString()
   let job = $derived(appState.imports.find((x) => x.id === importId))
+  let reviewPhotos = $derived(photos.filter((p) => !p.trashed))
   let queue = $derived(
-    photos.filter(
-      (p) =>
-        !p.trashed && (selectedView === 'all' || p.decision === selectedView)
+    reviewPhotos.filter(
+      (p) => selectedView === 'all' || p.decision === selectedView
     )
   )
   let current = $derived(queue[index])
+  let currentPosition = $derived(
+    current ? reviewPhotos.findIndex((p) => p.id === current.id) + 1 : 0
+  )
   let counts = $derived({
-    all: photos.filter((p) => !p.trashed).length,
+    all: reviewPhotos.length,
     unreviewed: photos.filter((p) => !p.trashed && p.decision === 'unreviewed')
       .length,
     keep: photos.filter((p) => !p.trashed && p.decision === 'keep').length,
@@ -992,8 +995,10 @@
             </div>{/if}
           <div class="stage-top">
             <span
-              >{fmt(index + 1)}
-              <span class="text-white/40">/ {fmt(queue.length)}</span></span
+              title="Position in the full review"
+              aria-label={`Photo ${fmt(currentPosition)} of ${fmt(counts.all)} in this review`}
+              >{fmt(currentPosition)}
+              <span class="text-white/40">/ {fmt(counts.all)}</span></span
             >
           </div>
           <button
