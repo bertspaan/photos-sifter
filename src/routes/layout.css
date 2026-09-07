@@ -650,16 +650,7 @@ kbd {
 .deletion-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 16px;
-  margin-top: 18px;
-}
-.deletion-summary strong {
-  font-size: 13px;
-  color: #64748b;
-  font-weight: 500;
+  flex-shrink: 0;
 }
 .notice {
   display: flex;
@@ -854,6 +845,108 @@ a:focus-visible {
   }
   .filmstrip {
     justify-content: flex-start;
+  }
+}
+@media (min-width: 801px) {
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+  }
+  .app-header {
+    height: 52px;
+    flex-shrink: 0;
+    padding-inline: 24px;
+  }
+  .brand-icon {
+    padding: 7px;
+    border-radius: 10px;
+  }
+  .workspace {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .sidebar {
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  .review-list {
+    flex-shrink: 0;
+  }
+  .review-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 24px 12px;
+  }
+  .review-main > * {
+    flex-shrink: 0;
+  }
+  .review-progress {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 20px;
+    padding: 10px 0 12px;
+    margin-bottom: 8px;
+  }
+  .review-heading {
+    min-width: 0;
+  }
+  .progress-summary {
+    gap: 20px;
+    margin: 0;
+  }
+  .progress-summary p strong {
+    font-size: 17px;
+  }
+  .progress-percent {
+    font-size: 25px;
+  }
+  .progress-track {
+    grid-column: 1 / -1;
+    margin: 0;
+    height: 10px;
+  }
+  .review-tabs {
+    margin-bottom: 8px;
+  }
+  .review-tabs button {
+    padding-block: 5px;
+  }
+  .photo-stage {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 180px;
+    border-radius: 12px;
+  }
+  .photo-meta {
+    min-height: 32px;
+    padding-block: 6px;
+  }
+  .decision-button {
+    height: 42px !important;
+  }
+  .review-footer {
+    margin-top: 8px;
+    gap: 12px;
+  }
+  .filmstrip button {
+    width: 44px;
+    height: 32px;
+  }
+}
+@media (max-width: 800px) {
+  .review-footer {
+    flex-wrap: wrap;
+  }
+  .deletion-summary {
+    margin-left: auto;
   }
 }
 @media (prefers-reduced-motion: reduce) {

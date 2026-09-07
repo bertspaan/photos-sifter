@@ -1128,21 +1128,22 @@
                   />{/if}</button
               >{/each}
           </div>{/if}
+        {#if counts.delete}<div class="deletion-summary">
+            {#if marked.length}<Button
+                variant="destructive"
+                disabled={busy || deleting}
+                onclick={prepareDelete}
+                size="sm"
+                ><Trash2 size={15} /> Review {fmt(marked.length)} marked</Button
+              >{:else}<Button
+                variant="outline"
+                size="sm"
+                onclick={() => run(exportDecisions)}
+                disabled={busy || deleting}
+                ><Download size={16} /> Export decisions</Button
+              >{/if}
+          </div>{/if}
       </div>
-      {#if counts.delete}<div class="deletion-summary">
-          <strong>{fmt(counts.delete)} marked</strong>
-          {#if marked.length}<Button
-              variant="destructive"
-              disabled={busy || deleting}
-              onclick={prepareDelete}
-              ><Trash2 size={16} /> Review marked…</Button
-            >{:else}<Button
-              variant="outline"
-              onclick={() => run(exportDecisions)}
-              disabled={busy || deleting}
-              ><Download size={16} /> Export decisions</Button
-            >{/if}
-        </div>{/if}
     </section>
   </main>
 </div>
