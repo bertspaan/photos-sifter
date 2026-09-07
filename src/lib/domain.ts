@@ -20,6 +20,8 @@ export function validateDeletion(rows: Photo[]): void {
 	if (rows.length > 500) throw new Error('Delete up to 500 photos at a time.');
 	if (new Set(rows.map((p) => p.account)).size !== 1)
 		throw new Error('Review one Google account at a time.');
+	if (new Set(rows.map((p) => p.dedupKey)).size !== rows.length)
+		throw new Error('Selected photos share a deletion key. Nothing was deleted.');
 	for (const p of rows)
 		if (
 			p.source !== 'google' ||
@@ -35,7 +37,18 @@ export function validateDeletion(rows: Photo[]): void {
 export function previewFingerprint(rows: Photo[]): string {
 	return JSON.stringify(
 		rows
-			.map((p) => [p.id, p.revision, p.decision, p.dedupKey])
+			.map((p) => [
+				p.id,
+				p.revision,
+				p.decision,
+				p.dedupKey,
+				p.account,
+				p.mediaKey,
+				p.filename,
+				p.source,
+				p.isOwned,
+				p.thumb
+			])
 			.sort((a, b) => String(a[0]).localeCompare(String(b[0])))
 	);
 }

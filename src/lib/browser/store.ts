@@ -257,6 +257,7 @@ export class ReviewStore {
 								...p,
 								account: v.account,
 								source: 'google',
+								decision: identityChanged ? 'unreviewed' : old?.decision || 'unreviewed',
 								revision: (old?.revision || 0) + (identityChanged ? 1 : 0)
 							} as Photo;
 						})
@@ -374,7 +375,7 @@ export class ReviewStore {
 					if (!row || row.state !== 'pending')
 						throw new Error('This deletion has already been attempted.');
 					const p = await this.getPhoto(v.id);
-					validateDeletion([p]);
+					await this.validateSelection([p]);
 					const preview = await this.db.previews.get(v.batch);
 					const expected = preview?.consumed
 						? JSON.parse(preview.fingerprint).find((r: unknown[]) => r[0] === p.id)
