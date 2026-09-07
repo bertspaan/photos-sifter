@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { googleRequest } from '../extension/google-client.js';
+import { validateThumbnail } from '../src/lib/browser/store';
 const account = 'me@example.com';
 let calls: { method: string; data: any }[];
 function row(key = 'photo-a', trash = false) {
@@ -141,5 +142,39 @@ describe('Chrome companion RPC boundary (mock Google responses)', () => {
 			vi.fn(async () => new Response('unexpected response'))
 		);
 		expect(await googleRequest('page', { account, query: 'WA' })).toHaveProperty('error');
+	});
+});
+
+// Exercise both boundaries: Google RPC parsing and browser import/backup validation.
+describe('Google Photos preview hosts', () => {
+	it.each([
+		['https://lh3.googleusercontent.com/preview', true],
+		['https://photos.fife.usercontent.google.com/preview', true],
+		['http://photos.fife.usercontent.google.com/preview', false],
+		['https://photos.fife.usercontent.google.com.evil.example/preview', false],
+		['https://evil.example/preview', false],
+		['https://other.usercontent.google.com/preview', false],
+		['https://user:secret@photos.fife.usercontent.google.com/preview', false],
+		['https://photos.fife.usercontent.google.com:8443/preview', false],
+		['https://lh3.googleusercontent.com@evil.example/preview', false]
+	])('validates %s at both boundaries', async (thumb, accepted) => {
+		mockRpc((method) => {
+			if (method === 'lcxiM') {
+				const photo = row();
+				photo[1][0] = thumb;
+				return [[photo], null];
+			}
+			if (method === 'EWgK9e') return [[null, [['photo-a', [null, null, null, 'IMG-WA.jpg']]]]];
+			throw Error(method);
+		});
+		const result: any = await googleRequest('page', { account });
+		if (accepted) {
+			expect(result.error).toBeUndefined();
+			expect(result.items[0].thumb).toBe(thumb + '=w1600-h1600');
+			expect(() => validateThumbnail(result.items[0].thumb)).not.toThrow();
+		} else {
+			expect(result.error).toBe('Unexpected preview address.');
+			expect(() => validateThumbnail(thumb)).toThrow();
+		}
 	});
 });

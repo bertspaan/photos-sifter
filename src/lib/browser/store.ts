@@ -24,7 +24,16 @@ const filtersSchema = z.object({
 export function validateThumbnail(thumb: string) {
 	if (!thumb) return;
 	const u = new URL(thumb);
-	if (u.protocol !== 'https:' || !/^lh\d+\.googleusercontent\.com$/.test(u.hostname))
+	if (
+		u.protocol !== 'https:' ||
+		u.username ||
+		u.password ||
+		u.port ||
+		!(
+			u.hostname === 'photos.fife.usercontent.google.com' ||
+			/^lh\d+\.googleusercontent\.com$/.test(u.hostname)
+		)
+	)
 		throw new Error('Unexpected image host.');
 }
 export function localPhotoId(folderId: string, path: string) {

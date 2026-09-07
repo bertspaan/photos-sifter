@@ -75,8 +75,20 @@ export async function googleRequest(action, payload) {
 			if (typeof row?.[0] !== 'string' || !row[0] || typeof info?.filename !== 'string')
 				throw new Error('A photo is missing its ID or filename; import paused.');
 			const thumb = row?.[1]?.[0] || '';
-			if (thumb && !/^https:\/\/lh\d+\.googleusercontent\.com\//.test(thumb))
-				throw new Error('Unexpected preview address.');
+			if (thumb) {
+				const url = new URL(thumb);
+				if (
+					url.protocol !== 'https:' ||
+					url.username ||
+					url.password ||
+					url.port ||
+					!(
+						url.hostname === 'photos.fife.usercontent.google.com' ||
+						/^lh\d+\.googleusercontent\.com$/.test(url.hostname)
+					)
+				)
+					throw new Error('Unexpected preview address.');
+			}
 			const flags = row.at(-1);
 			return {
 				mediaKey: row[0],
