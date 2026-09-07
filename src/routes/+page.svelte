@@ -129,6 +129,7 @@
     accounts.find((a) => String(a.tabId) === tabValue)
   )
   let reviewed = $derived(counts.all - counts.unreviewed)
+  let progressPercent = $derived(counts.all ? (reviewed / counts.all) * 100 : 0)
   const views = [
     { value: 'unreviewed', label: 'To review' },
     { value: 'keep', label: 'Keep' },
@@ -483,7 +484,7 @@
     const el = e.target as HTMLElement
     if (
       el.closest(
-        'input,textarea,select,[contenteditable="true"],[role="combobox"],[role="dialog"],[role="alertdialog"]'
+        'input,textarea,select,summary,[contenteditable="true"],[role="combobox"],[role="dialog"],[role="alertdialog"]'
       )
     )
       return
@@ -704,14 +705,15 @@
     <div class="brand-icon"><Images size={23} /></div>
     <div>
       <h1>Photos Sifter</h1>
-      <p>Clean Google Photos <span>·</span> browser workspace</p>
     </div>
     <div class="header-actions">
-      <Badge
-        variant="outline"
-        class="hidden sm:inline-flex gap-1.5 border-slate-200 bg-white text-slate-500"
-        ><ShieldCheck size={13} /> Saved in this browser</Badge
-      ><Button
+      <span
+        class="saved-indicator"
+        title="Decisions are saved in this browser"
+        aria-label="Decisions are saved in this browser"
+        ><ShieldCheck size={17} /></span
+      >
+      <Button
         variant="ghost"
         size="icon"
         aria-label="Keyboard shortcuts and setup help"
@@ -725,7 +727,6 @@
   </header>
   <main class="workspace">
     <aside class="sidebar">
-      <div class="section-label">YOUR LIBRARY</div>
       <Button
         class="w-full justify-start gap-2"
         onclick={() => (setupOpen = true)}
@@ -753,9 +754,9 @@
                 />{:else}<FolderOpen size={18} />{/if}
               <span
                 ><strong>{reviewLabel(item)}</strong><small
-                  >{fmt(item.count)} photos · {item.status === 'complete'
-                    ? 'Imported'
-                    : 'Paused'}</small
+                  >{fmt(item.count)} photos{item.status === 'complete'
+                    ? ''
+                    : ' · Paused'}</small
                 ></span
               >
               {#if importId === item.id}<span class="active-dot"></span>{/if}
@@ -776,56 +777,105 @@
       {#if !appState.imports.length}<p
           class="mt-4 text-sm leading-relaxed text-slate-400"
         >
-          Your review sessions will appear here.
+          No reviews yet.
         </p>{/if}
-      {#if job}<div class="mt-7 border-t pt-5">
-          <div class="section-label mb-3">REVIEW FILTERS</div>
-          <label class="check-label"
-            ><Checkbox
-              bind:checked={matchOnly}
-              disabled={job.source === 'local' || busy || deleting}
-            /><span>Match local filenames</span></label
-          ><label class="check-label mt-3"
-            ><Checkbox
-              bind:checked={useList}
+      {#if job}<details class="review-filters">
+          <summary><ListFilter size={15} /> Filters</summary>
+          <div class="filter-fields">
+            <label class="check-label"
+              ><Checkbox
+                bind:checked={matchOnly}
+                disabled={job.source === 'local' || busy || deleting}
+              /><span>Match backup</span></label
+            ><label class="check-label mt-3"
+              ><Checkbox
+                bind:checked={useList}
+                disabled={busy || deleting}
+              /><span>Filename list</span></label
+            >{#if useList}<Textarea
+                class="mt-3 h-28 text-xs"
+                bind:value={filenamesText}
+                placeholder="IMG-20260713-WA0019.jpg"
+              /><label class="mt-2 block text-xs text-slate-500"
+                >Load .txt or .json<input
+                  type="file"
+                  accept=".txt,.json"
+                  onchange={uploadNames}
+                  class="mt-1 w-full text-xs"
+                /></label
+              >{/if}<Button
+              variant="outline"
+              size="sm"
+              class="mt-4 w-full"
               disabled={busy || deleting}
-            /><span>Use a filename list</span></label
-          >{#if useList}<Textarea
-              class="mt-3 h-28 text-xs"
-              bind:value={filenamesText}
-              placeholder="IMG-20260713-WA0019.jpg"
-            /><label class="mt-2 block text-xs text-slate-500"
-              >Load .txt or .json<input
-                type="file"
-                accept=".txt,.json"
-                onchange={uploadNames}
-                class="mt-1 w-full text-xs"
-              /></label
-            >{/if}<Button
-            variant="outline"
-            size="sm"
-            class="mt-4 w-full"
-            disabled={busy || deleting}
-            onclick={() =>
-              run(async () => {
-                index = 0
-                await loadPhotos()
-              })}><ListFilter size={14} /> Apply filters</Button
-          >
-        </div>{/if}
-      <div class="sidebar-bottom">
-        <div class="flex items-center gap-2 text-sm font-medium text-slate-600">
-          <FolderOpen size={16} /> Local backup
-        </div>
-        <p class="mt-1 text-xs text-slate-400">
-          {fmt(appState.localCount)} photos indexed
-        </p>
-        <p class="mt-3 text-xs leading-relaxed text-slate-400">
-          Reviewing never changes the original files.
-        </p>
+              onclick={() =>
+                run(async () => {
+                  index = 0
+                  await loadPhotos()
+                })}><ListFilter size={14} /> Apply filters</Button
+            >
+          </div>
+        </details>{/if}
+      <div
+        class="sidebar-bottom"
+        title="Local backup · originals are never changed"
+      >
+        <FolderOpen size={15} /><span
+          >{fmt(appState.localCount)} local photos</span
+        >
       </div>
     </aside>
     <section class="review-main">
+      <div class="review-progress">
+        <div class="review-heading">
+          <h2>{job ? reviewLabel(job) : 'Review photos'}</h2>
+          <div class="flex items-center gap-2">
+            {#if job?.source === 'google' && job.status !== 'complete'}{#if importing}<Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => (stopRequested = true)}
+                  ><Pause size={14} /> Pause import</Button
+                >{:else}<Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || deleting}
+                  onclick={() => run(importMore)}
+                  ><RefreshCw size={14} /> Resume import</Button
+                >{/if}{/if}{#if job}<Button
+                variant="ghost"
+                size="sm"
+                onclick={() => run(exportDecisions)}
+                disabled={busy || deleting}
+                aria-label="Export decisions"
+                title="Export decisions"><Download size={16} /></Button
+              >{/if}
+          </div>
+        </div>
+        {#if job}<div class="progress-summary">
+            <p>
+              <strong>{fmt(reviewed)}</strong><span>
+                / {fmt(counts.all)} reviewed</span
+              >
+            </p>
+            <strong class="progress-percent"
+              >{progressPercent.toLocaleString(undefined, {
+                maximumFractionDigits: 1
+              })}<span>%</span></strong
+            >
+          </div>
+          <div
+            class="progress-track"
+            role="progressbar"
+            aria-label="Review progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+            aria-valuetext={`${fmt(reviewed)} of ${fmt(counts.all)} photos reviewed`}
+          >
+            <div style:width={progressPercent + '%'}></div>
+          </div>{/if}
+      </div>
+
       {#if error}<div role="alert" class="notice error">
           <span>{error}</span><button
             aria-label="Dismiss error"
@@ -849,54 +899,14 @@
             onclick={verifyPending}>Check status</Button
           >
         </div>{/if}
-      <div class="review-heading">
-        <div>
-          <div class="section-label">
-            {job?.source === 'google'
-              ? 'GOOGLE PHOTOS'
-              : job
-                ? 'LOCAL PHOTOS'
-                : 'PHOTO WORKSPACE'}
-          </div>
-          <h2>
-            {job
-              ? job.source === 'google'
-                ? job.query || 'All your photos'
-                : 'Your local photos'
-              : 'Choose what stays.'}
-          </h2>
-        </div>
-        <div class="flex items-center gap-2">
-          {#if job?.source === 'google' && job.status !== 'complete'}{#if importing}<Button
-                variant="outline"
-                size="sm"
-                onclick={() => (stopRequested = true)}
-                ><Pause size={14} /> Pause import</Button
-              >{:else}<Button
-                variant="outline"
-                size="sm"
-                disabled={busy || deleting}
-                onclick={() => run(importMore)}
-                ><RefreshCw size={14} /> Resume import</Button
-              >{/if}{/if}{#if job}<Button
-              variant="ghost"
-              size="sm"
-              onclick={() => run(exportDecisions)}
-              disabled={busy || deleting}
-              ><Download size={15} /><span class="hidden sm:inline"
-                >Export decisions</span
-              ></Button
-            >{/if}
-        </div>
-      </div>
       {#if importing}<div
           class="mb-4 flex items-center gap-2 text-sm text-indigo-600"
         >
           <LoaderCircle size={16} class="animate-spin" /> Importing… {fmt(
             job?.count || 0
-          )} photos saved{skippedVideos
+          )} photos{skippedVideos
             ? `, ${fmt(skippedVideos)} videos skipped`
-            : ''}. You can resume if interrupted.
+            : ''}.
         </div>{/if}
       {#if job?.error && !importing}<p class="mb-4 text-sm text-amber-700">
           Import paused: {job.error}
@@ -984,10 +994,6 @@
             <span
               >{fmt(index + 1)}
               <span class="text-white/40">/ {fmt(queue.length)}</span></span
-            ><span class="stage-pill"
-              >{current.source === 'local'
-                ? 'Local preview'
-                : 'Google preview'}</span
             >
           </div>
           <button
@@ -1018,18 +1024,16 @@
               </h3>
               <p>
                 {selectedView === 'unreviewed'
-                  ? 'Your decisions are saved. You can revisit any photo in the tabs above.'
+                  ? 'All decisions saved.'
                   : 'Photos with this decision will appear here.'}
               </p>{:else}<Images size={42} class="text-indigo-300" />
               <h3>
-                {job
-                  ? 'No photos match these filters.'
-                  : 'A fresh look at your library.'}
+                {job ? 'No photos match these filters.' : 'Choose your photos.'}
               </h3>
               <p>
                 {job
                   ? 'Adjust your filename filters, or finish importing this review.'
-                  : 'Start with your WhatsApp backup or connect Google Photos. Keep, mark, or come back to it later.'}
+                  : 'Connect Google Photos or choose a local folder.'}
               </p>
               <Button
                 class="mt-5"
@@ -1039,20 +1043,20 @@
           </div>{/if}
       </div>
       <div class="photo-meta">
-        <div>
-          <strong>{current?.filename || 'No photo selected'}</strong>
-          <p>
-            {current
-              ? dateLabel(current)
-              : 'Your next review starts here.'}{#if current && current.width}
-              <span>· {current.width} × {current.height}</span
-              >{/if}{#if current?.localMatches}<span>
+        {#if current}<details class="photo-details">
+            <summary title="Photo details"
+              >{current.filename}<ChevronRight size={14} /></summary
+            >
+            <p>
+              {dateLabel(current)}{#if current.width}
+                · {current.width} × {current.height}{/if}{#if current.localMatches}
                 · {current.localMatches === 1
                   ? 'Backup match'
-                  : 'Multiple backup matches'}</span
-              >{/if}
-          </p>
-        </div>
+                  : 'Multiple backup matches'}{/if}
+            </p>
+          </details>{:else}<span class="text-sm text-slate-400"
+            >No photo selected</span
+          >{/if}
         {#if current?.source === 'google'}<a
             class="text-slate-400 hover:text-indigo-600"
             aria-label="Open current photo in Google Photos"
@@ -1069,11 +1073,12 @@
       <div class="decision-bar">
         <Button
           class="decision-button mark-button"
+          aria-label="Mark for deletion"
+          title="Mark for deletion (D)"
           variant="outline"
           disabled={!current || currentFailed || busy || deleting}
           onclick={() => decide('delete')}
-          ><Trash2 size={18} /><span>Mark for deletion</span><kbd>D</kbd
-          ></Button
+          ><Trash2 size={18} /><span>Mark</span><kbd>D</kbd></Button
         ><Button
           class="decision-button skip-button"
           variant="outline"
@@ -1084,7 +1089,7 @@
           class="decision-button keep-button"
           disabled={!current || busy || deleting}
           onclick={() => decide('keep')}
-          ><Check size={20} /><span>Keep photo</span><kbd>K</kbd></Button
+          ><Check size={20} /><span>Keep</span><kbd>K</kbd></Button
         >
       </div>
       <div class="review-footer">
@@ -1093,52 +1098,39 @@
           size="sm"
           disabled={!appState.undoCount || busy || deleting}
           onclick={undo}><Undo2 size={15} /> Undo <kbd>Z</kbd></Button
-        ><span class="text-xs text-slate-400 hidden sm:block"
-          >← mark · → keep · Space unsure</span
-        ><span class="text-sm text-slate-500"
-          >{fmt(reviewed)} of {fmt(counts.all)} reviewed</span
         >
+        {#if queue.length > 1}<div
+            class="filmstrip"
+            aria-label="Upcoming photos"
+          >
+            {#each queue.slice(Math.max(0, index - 2), index + 7) as p}<button
+                class:selected={p.id === current?.id}
+                aria-label={'Review ' + p.filename}
+                disabled={busy || deleting}
+                onclick={() => {
+                  index = queue.findIndex((x) => x.id === p.id)
+                  currentFailed = false
+                  persist()
+                }}
+                ><PhotoImage
+                  photo={p}
+                  small
+                  loading="lazy"
+                />{#if p.decision === 'keep'}<Check
+                    size={12}
+                  />{:else if p.decision === 'delete'}<Trash2
+                    size={12}
+                  />{/if}</button
+              >{/each}
+          </div>{/if}
       </div>
-      <div class="progress-track">
-        <div
-          style:width={(counts.all ? (reviewed / counts.all) * 100 : 0) + '%'}
-        ></div>
-      </div>
-      {#if queue.length > 1}<div class="filmstrip" aria-label="Upcoming photos">
-          {#each queue.slice(Math.max(0, index - 2), index + 7) as p}<button
-              class:selected={p.id === current?.id}
-              aria-label={'Review ' + p.filename}
-              disabled={busy || deleting}
-              onclick={() => {
-                index = queue.findIndex((x) => x.id === p.id)
-                currentFailed = false
-                persist()
-              }}
-              ><PhotoImage
-                photo={p}
-                small
-                loading="lazy"
-              />{#if p.decision === 'keep'}<Check
-                  size={12}
-                />{:else if p.decision === 'delete'}<Trash2
-                  size={12}
-                />{/if}</button
-            >{/each}
-        </div>{/if}
       {#if counts.delete}<div class="deletion-summary">
-          <div>
-            <strong>{fmt(counts.delete)} marked for deletion</strong>
-            <p>
-              {job?.source === 'local'
-                ? 'These are saved decisions only. Export them or import Google Photos to review cloud copies.'
-                : 'Nothing has been deleted. Preview the selection when you’re ready.'}
-            </p>
-          </div>
+          <strong>{fmt(counts.delete)} marked</strong>
           {#if marked.length}<Button
               variant="destructive"
               disabled={busy || deleting}
               onclick={prepareDelete}
-              ><Trash2 size={16} /> Delete {Math.min(marked.length, 100)} photos…</Button
+              ><Trash2 size={16} /> Review marked…</Button
             >{:else}<Button
               variant="outline"
               onclick={() => run(exportDecisions)}
