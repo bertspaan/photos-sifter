@@ -21,7 +21,9 @@
     const { id, action, payload } = event.data
     if (
       typeof id !== 'string' ||
-      !['ping', 'page', 'trash', 'verify', 'refresh'].includes(action)
+      !['ping', 'page', 'trash', 'verify', 'refresh', 'preview'].includes(
+        action
+      )
     )
       return
     try {

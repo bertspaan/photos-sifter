@@ -1,6 +1,6 @@
 /** Undocumented RPC formats derived from Google Photos Toolkit (MIT). See THIRD_PARTY_NOTICES.md.
  * This function runs in Google's page world. It must remain self-contained.
- * Credentials remain in that page. Only sanitized photo metadata returns to the app.
+ * Credentials remain in that page. Only sanitized photo metadata and bounded image previews return to the app.
  */
 /** @param {string} action @param {any} payload */
 export async function googleRequest(action, payload) {
@@ -137,6 +137,99 @@ export async function googleRequest(action, payload) {
         (x) =>
           x && typeof x === 'object' && !Array.isArray(x) && !!x[225032867]?.[0]
       )
+    }
+    if (action === 'preview') {
+      if (
+        typeof payload.mediaKey !== 'string' ||
+        !payload.mediaKey ||
+        payload.mediaKey.length > 5000 ||
+        ![320, 1600].includes(payload.size)
+      )
+        throw new Error('Invalid preview request.')
+      // Resolve the image from its identity in this account, never an app-supplied URL.
+      const d = await detail(payload.mediaKey)
+      const raw = d?.[0]?.[1]?.[0]
+      if (typeof raw !== 'string' || !raw)
+        throw new Error(
+          'Google Photos did not return a preview for this photo.'
+        )
+      const url = new URL(raw)
+      if (
+        url.protocol !== 'https:' ||
+        url.username ||
+        url.password ||
+        url.port ||
+        !(
+          url.hostname === 'photos.fife.usercontent.google.com' ||
+          /^lh\d+\.googleusercontent\.com$/.test(url.hostname)
+        )
+      )
+        throw new Error('Unexpected preview address.')
+      url.pathname =
+        url.pathname.replace(/=[^/]*$/, '') +
+        '=w' +
+        payload.size +
+        '-h' +
+        payload.size +
+        '-no'
+      // Match the signed-in account selected in Google Photos, including /u/1/ tabs.
+      const authuser =
+        new URL(location.href).searchParams.get('authuser') ||
+        location.pathname.match(/\/u\/(\d+)(?:\/|$)/)?.[1] ||
+        '0'
+      url.searchParams.set('authuser', authuser)
+      const response = await fetch(url, {
+        credentials: 'include',
+        redirect: 'error',
+        signal: AbortSignal.timeout(30000)
+      })
+      if (!response.ok)
+        throw new Error(
+          'Google Photos could not load this preview (HTTP ' +
+            response.status +
+            ').'
+        )
+      const mime = (response.headers.get('content-type') || '')
+        .split(';')[0]
+        .trim()
+      if (
+        ![
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/avif',
+          'image/gif'
+        ].includes(mime)
+      )
+        throw new Error('Google Photos returned an unsupported preview format.')
+      const limit = 8 * 1024 * 1024
+      if (Number(response.headers.get('content-length')) > limit)
+        throw new Error('This preview is too large.')
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('Google Photos returned an empty preview.')
+      let length = 0
+      const chunks = []
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        length += value.byteLength
+        if (length > limit) {
+          await reader.cancel()
+          throw new Error('This preview is too large.')
+        }
+        chunks.push(value)
+      }
+      if (!length) throw new Error('Google Photos returned an empty preview.')
+      const bytes = new Uint8Array(length)
+      let offset = 0
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset)
+        offset += chunk.byteLength
+      }
+      let binary = ''
+      for (let i = 0; i < bytes.length; i += 32768)
+        binary += String.fromCharCode(...bytes.subarray(i, i + 32768))
+      return { account, mediaKey: payload.mediaKey, mime, base64: btoa(binary) }
     }
     if (action === 'page') {
       const query = typeof payload.query === 'string' ? payload.query : ''

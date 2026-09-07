@@ -28,9 +28,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           accounts.push({ tabId: tab.id, account: account.account })
         } catch {}
       }
-      return { tabs: accounts }
+      return {
+        tabs: accounts,
+        capabilities: ['preview'],
+        version: chrome.runtime.getManifest().version
+      }
     }
-    if (!['page', 'trash', 'verify', 'refresh'].includes(message.action))
+    if (
+      !['page', 'trash', 'verify', 'refresh', 'preview'].includes(
+        message.action
+      )
+    )
       throw new Error('Unsupported action.')
     const p = message.payload || {}
     if (!Number.isInteger(p.tabId) || typeof p.account !== 'string')

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { previews } from '$lib/browser/previews'
   import { readPhotoFile } from '$lib/browser/files'
   import type { Photo } from '$lib/types'
   let {
@@ -17,28 +18,32 @@
     onfailure?: (message: string) => void
   } = $props()
   let src = $state('')
+  let failure = $state('')
   $effect(() => {
     const p = photo,
       thumb = small
     let alive = true,
       blobUrl = ''
     src = ''
-    if (p.source === 'google')
-      src = thumb ? p.thumb.replace(/=w\d+-h\d+$/, '=w320-h320') : p.thumb
-    else
-      void readPhotoFile(p)
-        .then((file) => {
-          if (alive) {
-            blobUrl = URL.createObjectURL(file)
-            src = blobUrl
-          }
-        })
-        .catch((e) => {
-          if (alive)
-            onfailure?.(
-              e instanceof Error ? e.message : 'Unable to read local photo.'
-            )
-        })
+    failure = ''
+    const load =
+      p.source === 'google'
+        ? previews.load(p, thumb ? 320 : 1600)
+        : readPhotoFile(p)
+    void load
+      .then((blob) => {
+        if (alive) {
+          blobUrl = URL.createObjectURL(blob)
+          src = blobUrl
+        }
+      })
+      .catch((e) => {
+        if (alive) {
+          failure =
+            e instanceof Error ? e.message : 'Unable to load this preview.'
+          onfailure?.(failure)
+        }
+      })
     return () => {
       alive = false
       if (blobUrl) URL.revokeObjectURL(blobUrl)
@@ -46,16 +51,22 @@
   })
 </script>
 
-{#if src}<img
+{#if failure}<div
+    class={className}
+    role="img"
+    aria-label={failure}
+    title={failure}
+  ></div>{:else if src}<img
     {src}
     class={className}
     alt={photo.filename}
     {loading}
     onload={() => onready?.()}
-    onerror={() =>
-      onfailure?.(
+    onerror={() => {
+      failure =
         'This preview is unavailable or the format is not supported by your browser.'
-      )}
+      onfailure?.(failure)
+    }}
   />{:else}<div
     class={className}
     role="img"

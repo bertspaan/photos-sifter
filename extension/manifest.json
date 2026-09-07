@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Photo Review \u2014 Google Photos companion",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Connect Photo Review at bertspaan.nl/photos-sifter or localhost to a signed-in Google Photos tab.",
   "permissions": ["scripting"],
   "host_permissions": ["https://photos.google.com/*"],
