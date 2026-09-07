@@ -1,0 +1,28 @@
+{
+	"manifest_version": 3,
+	"name": "Photo Review \u2014 Google Photos companion",
+	"version": "0.2.0",
+	"description": "Connect Photo Review at bertspaan.nl/photos-sifter or localhost to a signed-in Google Photos tab.",
+	"permissions": ["scripting"],
+	"host_permissions": ["https://photos.google.com/*"],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"content_scripts": [
+		{
+			"matches": [
+				"http://127.0.0.1/*",
+				"http://localhost/*",
+				"https://bertspaan.nl/photos-sifter",
+				"https://bertspaan.nl/photos-sifter/*"
+			],
+			"js": ["bridge.js"],
+			"run_at": "document_idle"
+		}
+	],
+	"action": {
+		"default_title": "Photo Review \u2014 open the local app",
+		"default_popup": "popup.html"
+	}
+}

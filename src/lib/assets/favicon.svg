@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Google Photos Sifter — a sparkling little photo</title>
+  <rect width="64" height="64" rx="17" fill="#4f46e5"/>
+  <g transform="rotate(-9 30 35)">
+    <rect x="11" y="16" width="39" height="38" rx="6" fill="#312e81" opacity=".35" transform="translate(0 3)"/>
+    <rect x="11" y="16" width="39" height="38" rx="6" fill="#fff"/>
+    <rect x="15" y="20" width="31" height="25" rx="3" fill="#c7d2fe"/>
+    <circle cx="23" cy="27" r="4" fill="#fb7185"/>
+    <path d="m15 40 9-9 8 8 6-7 8 9v4H15Z" fill="#6366f1"/>
+    <path d="m15 42 9-9 8 8 6-7 8 9v2H15Z" fill="#4338ca"/>
+  </g>
+  <path d="M49 6 52.5 16.5 63 20 52.5 23.5 49 34 45.5 23.5 35 20 45.5 16.5Z" fill="#fcd34d" stroke="#4f46e5" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="11" cy="10" r="2" fill="#fcd34d"/>
+</svg>

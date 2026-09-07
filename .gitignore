@@ -1,0 +1,31 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+.data/
+.env
+*.log
+
+# Generated extension download; rebuilt for development and production
+/static/downloads/photos-sifter-extension.zip
+/static/downloads/photos-sifter-extension.zip.tmp
