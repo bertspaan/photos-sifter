@@ -80,6 +80,8 @@
     helpOpen = $state(false),
     deleteOpen = $state(false),
     preview = $state<{ token: string; photos: Photo[] } | null>(null)
+  let removeReviewOpen = $state(false)
+  let reviewToRemove = $state<ImportJob | null>(null)
   let loadedImages = $state<string[]>([])
   let failedImages = $state<string[]>([]),
     deletionProgress = $state(''),
@@ -285,6 +287,30 @@
     await loadPhotos()
     currentFailed = false
   }
+  function reviewLabel(item: ImportJob) {
+    return item.source === 'local'
+      ? 'Local photos'
+      : item.query || 'All Google Photos'
+  }
+  async function removeReview() {
+    if (!reviewToRemove || importing || deleting) return
+    const id = reviewToRemove.id
+    await run(async () => {
+      await review('imports/remove', { id })
+      await refresh()
+      if (importId === id) {
+        importId = appState.imports[0]?.id || ''
+        index = 0
+        currentFailed = false
+        imageError = ''
+        await loadPhotos()
+      }
+      persist()
+      removeReviewOpen = false
+      reviewToRemove = null
+      notice = 'Review removed. Photos and saved decisions are unchanged.'
+    })
+  }
   async function exportDecisions() {
     downloadJson(await review('export', { importId }), 'photo-decisions.json')
   }
@@ -447,6 +473,7 @@
       deleting ||
       setupOpen ||
       helpOpen ||
+      removeReviewOpen ||
       deleteOpen ||
       e.metaKey ||
       e.ctrlKey ||
@@ -710,30 +737,41 @@
         >
       </div>
       <div class="review-list">
-        {#each appState.imports as item}<button
-            class:active={importId === item.id}
-            disabled={busy || deleting}
-            onclick={() =>
-              run(async () => {
-                importId = item.id
-                index = 0
-                await loadPhotos()
-              })}
-            >{#if item.source === 'google'}<Cloud size={18} />{:else}<FolderOpen
-                size={18}
-              />{/if}<span
-              ><strong
-                >{item.source === 'local'
-                  ? 'Local photos'
-                  : item.query || 'All Google Photos'}</strong
-              ><small
-                >{fmt(item.count)} photos · {item.status === 'complete'
-                  ? 'Imported'
-                  : 'Paused'}</small
-              ></span
-            >{#if importId === item.id}<span class="active-dot"
-              ></span>{/if}</button
-          >{/each}
+        {#each appState.imports as item (item.id)}<div class="review-row">
+            <button
+              class="review-select"
+              class:active={importId === item.id}
+              disabled={busy || deleting}
+              onclick={() =>
+                run(async () => {
+                  importId = item.id
+                  index = 0
+                  await loadPhotos()
+                })}
+              >{#if item.source === 'google'}<Cloud
+                  size={18}
+                />{:else}<FolderOpen size={18} />{/if}
+              <span
+                ><strong>{reviewLabel(item)}</strong><small
+                  >{fmt(item.count)} photos · {item.status === 'complete'
+                    ? 'Imported'
+                    : 'Paused'}</small
+                ></span
+              >
+              {#if importId === item.id}<span class="active-dot"></span>{/if}
+            </button>
+            <button
+              class="review-remove"
+              aria-label={'Remove review ' + reviewLabel(item)}
+              title="Remove review"
+              disabled={busy || deleting || importing}
+              onclick={() => {
+                error = ''
+                reviewToRemove = item
+                removeReviewOpen = true
+              }}><X size={16} /></button
+            >
+          </div>{/each}
       </div>
       {#if !appState.imports.length}<p
           class="mt-4 text-sm leading-relaxed text-slate-400"
@@ -865,7 +903,7 @@
         </p>{/if}
       {#if appState.imports.length}<select
           aria-label="Choose review"
-          class="native-select mb-4 md:hidden"
+          class="native-select mb-4 mobile-review-select"
           value={importId}
           disabled={busy || deleting}
           onchange={(e) =>
@@ -879,6 +917,17 @@
                 ? 'Local photos'
                 : item.query || 'All Google Photos'} · {fmt(item.count)}</option
             >{/each}</select
+        >{/if}
+      {#if job}<Button
+          class="mobile-review-remove mb-4"
+          variant="ghost"
+          size="sm"
+          disabled={busy || deleting || importing}
+          onclick={() => {
+            error = ''
+            reviewToRemove = job || null
+            removeReviewOpen = true
+          }}><X size={15} /> Remove this review</Button
         >{/if}
       <div class="review-tabs" role="tablist" aria-label="Review decisions">
         {#each views as view}<button
@@ -1304,6 +1353,38 @@
       </p>{/if}</Dialog.Content
   ></Dialog.Root
 >
+<AlertDialog.Root bind:open={removeReviewOpen}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>Remove this review?</AlertDialog.Title>
+      <AlertDialog.Description>
+        This removes the review from your list. Your Google Photos, local files,
+        and saved keep/delete decisions stay unchanged. Importing these photos
+        again will reuse their saved decisions.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    {#if reviewToRemove}<div class="rounded-lg border p-3 text-sm">
+        <strong>{reviewLabel(reviewToRemove)}</strong>
+        <p class="mt-1 text-slate-500">
+          {fmt(reviewToRemove.count)} photos · Created {new Date(
+            reviewToRemove.created
+          ).toLocaleString()}
+        </p>
+      </div>{/if}
+    {#if error}<p role="alert" class="text-sm text-red-600">{error}</p>{/if}
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel disabled={busy}>Cancel</AlertDialog.Cancel>
+      <Button
+        variant="destructive"
+        disabled={busy || importing || deleting}
+        onclick={removeReview}
+      >
+        {#if busy}<LoaderCircle size={16} class="animate-spin" />{/if}Remove
+        review
+      </Button>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
 <AlertDialog.Root bind:open={deleteOpen}
   ><AlertDialog.Content class="sm:max-w-4xl max-h-[90vh] flex flex-col"
     ><AlertDialog.Header

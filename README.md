@@ -128,3 +128,7 @@ pnpm format:check
 ```
 
 Tests use fake IndexedDB, mocked file handles and mock Google responses. They cover database reopening, competing tabs, exact filenames, stale confirmations, interrupted deletions, cancelled scans, read-only access, quota failures, workspace restoration and the extension’s exact URL boundary. Native folder-picker UI and live Google deletion require separate manual verification.
+
+## Remove old reviews
+
+Use the × button beside a review in the sidebar, then confirm **Remove review**. This removes the review and its list membership from this browser. Photos, saved keep/delete decisions, undo history and deletion status remain available, including when another review contains the same photos or you import them again. Removing a review never contacts Google Photos or changes local files.

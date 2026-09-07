@@ -248,6 +248,17 @@ export class ReviewStore {
           })
           return { id }
         })
+      case 'imports/remove': {
+        const { id } = z.object({ id: idSchema }).parse(body)
+        return this.write(async () => {
+          if (!(await this.db.imports.get(id)))
+            throw new Error('This review has already been removed.')
+          await this.db.memberships.where('importId').equals(id).delete()
+          await this.db.imports.delete(id)
+          // Photos, shared decisions, undo history and deletion records outlive reviews.
+          return { removed: id }
+        })
+      }
       case 'imports/create': {
         const v = z
           .object({ query: z.string().max(2000), account: idSchema })

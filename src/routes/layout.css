@@ -208,7 +208,14 @@ button:disabled {
   display: grid;
   gap: 7px;
 }
-.review-list button {
+.review-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.review-select {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -217,12 +224,35 @@ button:disabled {
   border-radius: 10px;
   color: #64748b;
 }
-.review-list button:hover {
+.review-select:hover {
   background: #f8fafc;
 }
-.review-list button.active {
+.review-select.active {
   background: #eef2ff;
   color: #4338ca;
+}
+.review-select > span:first-of-type {
+  min-width: 0;
+}
+.review-remove {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  height: 30px;
+  border-radius: 7px;
+  color: #94a3b8;
+}
+.review-remove:hover {
+  background: #fff1f2;
+  color: #be123c;
+}
+.review-remove:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+.review-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .review-list strong {
   display: block;
@@ -683,7 +713,17 @@ a:focus-visible {
     display: none;
   }
 }
+.mobile-review-remove,
+.mobile-review-select {
+  display: none;
+}
 @media (max-width: 800px) {
+  .mobile-review-remove {
+    display: inline-flex;
+  }
+  .mobile-review-select {
+    display: block;
+  }
   .workspace {
     display: block;
   }
