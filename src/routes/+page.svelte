@@ -48,6 +48,7 @@
     restoreWorkspace
   } from '$lib/browser/backup'
   import PhotoImage from '$lib/components/PhotoImage.svelte'
+  import { previews } from '$lib/browser/previews'
   import { parseFilenames } from '$lib/domain'
   import type { Photo, AppState, ImportJob, Decision } from '$lib/types'
   let appState = $state<AppState>({
@@ -80,6 +81,7 @@
     helpOpen = $state(false),
     deleteOpen = $state(false),
     preview = $state<{ token: string; photos: Photo[] } | null>(null)
+  let libraryOpen = $state(false)
   let removeReviewOpen = $state(false)
   let reviewToRemove = $state<ImportJob | null>(null)
   let loadedImages = $state<string[]>([])
@@ -111,6 +113,30 @@
   let currentPosition = $derived(
     current ? reviewPhotos.findIndex((p) => p.id === current.id) + 1 : 0
   )
+  let previousContext = $derived(
+    [-2, -1].map((offset) => reviewPhotos[currentPosition - 1 + offset])
+  )
+  let nextContext = $derived(
+    [1, 2].map((offset) => reviewPhotos[currentPosition - 1 + offset])
+  )
+  $effect(() => {
+    // Warm the exact preview used by the main image, including when decision filters skip neighbors.
+    for (const photo of queue.slice(index, index + 3)) {
+      if (photo.source === 'google')
+        void previews.load(photo, 1600).catch(() => {})
+    }
+  })
+  function showContextPhoto(photo: Photo) {
+    const queueIndex = queue.findIndex((p) => p.id === photo.id)
+    if (queueIndex >= 0) index = queueIndex
+    else {
+      selectedView = 'all'
+      index = reviewPhotos.findIndex((p) => p.id === photo.id)
+    }
+    currentFailed = false
+    imageError = ''
+    persist()
+  }
   let counts = $derived({
     all: reviewPhotos.length,
     unreviewed: photos.filter((p) => !p.trashed && p.decision === 'unreviewed')
@@ -426,7 +452,15 @@
     }
   }
   async function decide(decision: Decision) {
-    if (!current || busy || deleting || setupOpen || deleteOpen || helpOpen)
+    if (
+      !current ||
+      busy ||
+      deleting ||
+      setupOpen ||
+      deleteOpen ||
+      helpOpen ||
+      libraryOpen
+    )
       return
     if (decision === 'delete' && (currentFailed || !imageUrl(current))) {
       error = 'Load this photo’s preview before marking it for deletion.'
@@ -477,6 +511,7 @@
       deleting ||
       setupOpen ||
       helpOpen ||
+      libraryOpen ||
       removeReviewOpen ||
       deleteOpen ||
       e.metaKey ||
@@ -703,12 +738,63 @@
   /></svelte:head
 >
 <svelte:window onkeydown={handleKey} />
+{#snippet contextPhoto(photo: Photo | undefined, offset: number)}
+  <div class="context-frame" class:outer-context={Math.abs(offset) === 2}>
+    {#if photo}<button
+        class="context-photo"
+        aria-label={`View ${offset < 0 ? 'previous' : 'next'} photo: ${photo.filename}`}
+        title={photo.filename}
+        disabled={busy || deleting}
+        onclick={() => showContextPhoto(photo)}
+      >
+        {#key photo.id}<PhotoImage {photo} class="context-image" />{/key}
+        {#if photo.decision !== 'unreviewed'}<span
+            class="context-decision"
+            aria-label={photo.decision === 'delete'
+              ? 'Marked for deletion'
+              : photo.decision}
+          >
+            {#if photo.decision === 'keep'}<Check
+                size={15}
+              />{:else if photo.decision === 'delete'}<Trash2
+                size={15}
+              />{:else}<SkipForward size={15} />{/if}
+          </span>{/if}
+      </button>{/if}
+  </div>
+{/snippet}
 <div class="app-shell">
   <header class="app-header">
     <div class="brand-icon"><Images size={23} /></div>
     <div>
       <h1>Photos Sifter</h1>
     </div>
+    {#if appState.imports.length}<div class="review-switcher">
+        <select
+          aria-label="Choose review"
+          value={importId}
+          disabled={busy || deleting}
+          onchange={(e) =>
+            run(async () => {
+              importId = e.currentTarget.value
+              index = 0
+              await loadPhotos()
+              persist()
+            })}
+        >
+          {#each appState.imports as item}<option value={item.id}
+              >{reviewLabel(item)} · {fmt(item.count)}</option
+            >{/each}
+        </select>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Reviews and filters"
+          title="Reviews and filters"
+          disabled={busy || deleting}
+          onclick={() => (libraryOpen = true)}><ListFilter size={17} /></Button
+        >
+      </div>{/if}
     <div class="header-actions">
       <span
         class="saved-indicator"
@@ -729,105 +815,6 @@
     </div>
   </header>
   <main class="workspace">
-    <aside class="sidebar">
-      <Button
-        class="w-full justify-start gap-2"
-        onclick={() => (setupOpen = true)}
-        disabled={busy || deleting}><Images size={17} /> New review</Button
-      >
-      <div class="mt-7 flex items-center justify-between">
-        <span class="section-label">REVIEWS</span><span
-          class="text-xs text-slate-400">{appState.imports.length}</span
-        >
-      </div>
-      <div class="review-list">
-        {#each appState.imports as item (item.id)}<div class="review-row">
-            <button
-              class="review-select"
-              class:active={importId === item.id}
-              disabled={busy || deleting}
-              onclick={() =>
-                run(async () => {
-                  importId = item.id
-                  index = 0
-                  await loadPhotos()
-                })}
-              >{#if item.source === 'google'}<Cloud
-                  size={18}
-                />{:else}<FolderOpen size={18} />{/if}
-              <span
-                ><strong>{reviewLabel(item)}</strong><small
-                  >{fmt(item.count)} photos{item.status === 'complete'
-                    ? ''
-                    : ' · Paused'}</small
-                ></span
-              >
-              {#if importId === item.id}<span class="active-dot"></span>{/if}
-            </button>
-            <button
-              class="review-remove"
-              aria-label={'Remove review ' + reviewLabel(item)}
-              title="Remove review"
-              disabled={busy || deleting || importing}
-              onclick={() => {
-                error = ''
-                reviewToRemove = item
-                removeReviewOpen = true
-              }}><X size={16} /></button
-            >
-          </div>{/each}
-      </div>
-      {#if !appState.imports.length}<p
-          class="mt-4 text-sm leading-relaxed text-slate-400"
-        >
-          No reviews yet.
-        </p>{/if}
-      {#if job}<details class="review-filters">
-          <summary><ListFilter size={15} /> Filters</summary>
-          <div class="filter-fields">
-            <label class="check-label"
-              ><Checkbox
-                bind:checked={matchOnly}
-                disabled={job.source === 'local' || busy || deleting}
-              /><span>Match backup</span></label
-            ><label class="check-label mt-3"
-              ><Checkbox
-                bind:checked={useList}
-                disabled={busy || deleting}
-              /><span>Filename list</span></label
-            >{#if useList}<Textarea
-                class="mt-3 h-28 text-xs"
-                bind:value={filenamesText}
-                placeholder="IMG-20260713-WA0019.jpg"
-              /><label class="mt-2 block text-xs text-slate-500"
-                >Load .txt or .json<input
-                  type="file"
-                  accept=".txt,.json"
-                  onchange={uploadNames}
-                  class="mt-1 w-full text-xs"
-                /></label
-              >{/if}<Button
-              variant="outline"
-              size="sm"
-              class="mt-4 w-full"
-              disabled={busy || deleting}
-              onclick={() =>
-                run(async () => {
-                  index = 0
-                  await loadPhotos()
-                })}><ListFilter size={14} /> Apply filters</Button
-            >
-          </div>
-        </details>{/if}
-      <div
-        class="sidebar-bottom"
-        title="Local backup · originals are never changed"
-      >
-        <FolderOpen size={15} /><span
-          >{fmt(appState.localCount)} local photos</span
-        >
-      </div>
-    </aside>
     <section class="review-main">
       <div class="review-progress">
         <div class="review-heading">
@@ -914,34 +901,6 @@
       {#if job?.error && !importing}<p class="mb-4 text-sm text-amber-700">
           Import paused: {job.error}
         </p>{/if}
-      {#if appState.imports.length}<select
-          aria-label="Choose review"
-          class="native-select mb-4 mobile-review-select"
-          value={importId}
-          disabled={busy || deleting}
-          onchange={(e) =>
-            run(async () => {
-              importId = e.currentTarget.value
-              index = 0
-              await loadPhotos()
-            })}
-          >{#each appState.imports as item}<option value={item.id}
-              >{item.source === 'local'
-                ? 'Local photos'
-                : item.query || 'All Google Photos'} · {fmt(item.count)}</option
-            >{/each}</select
-        >{/if}
-      {#if job}<Button
-          class="mobile-review-remove mb-4"
-          variant="ghost"
-          size="sm"
-          disabled={busy || deleting || importing}
-          onclick={() => {
-            error = ''
-            reviewToRemove = job || null
-            removeReviewOpen = true
-          }}><X size={15} /> Remove this review</Button
-        >{/if}
       <div class="review-tabs" role="tablist" aria-label="Review decisions">
         {#each views as view}<button
             role="tab"
@@ -956,62 +915,72 @@
             }}>{view.label}<span>{fmt(counts[view.value])}</span></button
           >{/each}
       </div>
-      <div class="photo-stage">
+      <div class="photo-stage" class:has-context={!!current}>
         {#if current}
-          {#key current.id}<PhotoImage
-              class="main-photo"
-              photo={current}
-              onready={() => {
-                currentFailed = false
-                imageError = ''
-              }}
-              onfailure={(message) => {
-                currentFailed = true
-                imageError = message
-              }}
-            />{/key}
-          {#if currentFailed || !imageUrl(current)}<div class="image-error">
-              <ImageOff size={36} />
-              <h3>Preview unavailable</h3>
-              <p>
-                {imageError ||
-                  'The image may be unsupported or its Google preview may have expired.'}
-              </p>
-              {#if current.source === 'local'}<Button
-                  variant="secondary"
-                  onclick={() => (setupOpen = true)}>Reconnect folder</Button
-                >{/if}{#if current.source === 'google'}<Button
-                  variant="secondary"
-                  disabled={busy}
-                  onclick={refreshPreview}
-                  ><RefreshCw size={15} /> Refresh preview</Button
-                ><Button
-                  variant="secondary"
-                  href={'https://photos.google.com/photo/' + current.mediaKey}
-                  target="_blank"
-                  rel="noreferrer"
-                  >Open in Google Photos <ExternalLink size={15} /></Button
-                >{/if}
-            </div>{/if}
-          <div class="stage-top">
-            <span
-              title="Position in the full review"
-              aria-label={`Photo ${fmt(currentPosition)} of ${fmt(counts.all)} in this review`}
-              >{fmt(currentPosition)}
-              <span class="text-white/40">/ {fmt(counts.all)}</span></span
+          {#each previousContext as photo, i}{@render contextPhoto(
+              photo,
+              i - 2
+            )}{/each}
+          <div class="current-frame">
+            {#key current.id}<PhotoImage
+                class="main-photo"
+                photo={current}
+                onready={() => {
+                  currentFailed = false
+                  imageError = ''
+                }}
+                onfailure={(message) => {
+                  currentFailed = true
+                  imageError = message
+                }}
+              />{/key}
+            {#if currentFailed || !imageUrl(current)}<div class="image-error">
+                <ImageOff size={36} />
+                <h3>Preview unavailable</h3>
+                <p>
+                  {imageError ||
+                    'The image may be unsupported or its Google preview may have expired.'}
+                </p>
+                {#if current.source === 'local'}<Button
+                    variant="secondary"
+                    onclick={() => (setupOpen = true)}>Reconnect folder</Button
+                  >{/if}{#if current.source === 'google'}<Button
+                    variant="secondary"
+                    disabled={busy}
+                    onclick={refreshPreview}
+                    ><RefreshCw size={15} /> Refresh preview</Button
+                  ><Button
+                    variant="secondary"
+                    href={'https://photos.google.com/photo/' + current.mediaKey}
+                    target="_blank"
+                    rel="noreferrer"
+                    >Open in Google Photos <ExternalLink size={15} /></Button
+                  >{/if}
+              </div>{/if}
+            <div class="stage-top">
+              <span
+                title="Position in the full review"
+                aria-label={`Photo ${fmt(currentPosition)} of ${fmt(counts.all)} in this review`}
+                >{fmt(currentPosition)}
+                <span class="text-white/40">/ {fmt(counts.all)}</span></span
+              >
+            </div>
+            <button
+              class="stage-nav prev"
+              aria-label="Previous photo"
+              disabled={index === 0 || busy || deleting}
+              onclick={() => navigate(-1)}><ChevronLeft size={22} /></button
+            ><button
+              class="stage-nav next"
+              aria-label="Next photo without deciding"
+              disabled={index >= queue.length - 1 || busy || deleting}
+              onclick={() => navigate(1)}><ChevronRight size={22} /></button
             >
           </div>
-          <button
-            class="stage-nav prev"
-            aria-label="Previous photo"
-            disabled={index === 0 || busy || deleting}
-            onclick={() => navigate(-1)}><ChevronLeft size={22} /></button
-          ><button
-            class="stage-nav next"
-            aria-label="Next photo without deciding"
-            disabled={index >= queue.length - 1 || busy || deleting}
-            onclick={() => navigate(1)}><ChevronRight size={22} /></button
-          >
+          {#each nextContext as photo, i}{@render contextPhoto(
+              photo,
+              i + 1
+            )}{/each}
         {:else}<div class="stage-empty">
             {#if busy}<LoaderCircle
                 size={36}
@@ -1104,30 +1073,6 @@
           disabled={!appState.undoCount || busy || deleting}
           onclick={undo}><Undo2 size={15} /> Undo <kbd>Z</kbd></Button
         >
-        {#if queue.length > 1}<div
-            class="filmstrip"
-            aria-label="Upcoming photos"
-          >
-            {#each queue.slice(Math.max(0, index - 2), index + 7) as p}<button
-                class:selected={p.id === current?.id}
-                aria-label={'Review ' + p.filename}
-                disabled={busy || deleting}
-                onclick={() => {
-                  index = queue.findIndex((x) => x.id === p.id)
-                  currentFailed = false
-                  persist()
-                }}
-                ><PhotoImage
-                  photo={p}
-                  small
-                  loading="lazy"
-                />{#if p.decision === 'keep'}<Check
-                    size={12}
-                  />{:else if p.decision === 'delete'}<Trash2
-                    size={12}
-                  />{/if}</button
-              >{/each}
-          </div>{/if}
         {#if counts.delete}<div class="deletion-summary">
             {#if marked.length}<Button
                 variant="destructive"
@@ -1147,6 +1092,120 @@
     </section>
   </main>
 </div>
+<Dialog.Root bind:open={libraryOpen}>
+  <Dialog.Content class="sm:max-w-md max-h-[85vh] overflow-y-auto">
+    <Dialog.Header
+      ><Dialog.Title>Reviews and filters</Dialog.Title><Dialog.Description
+        class="sr-only"
+        >Switch reviews, remove old reviews, or adjust filename filters.</Dialog.Description
+      ></Dialog.Header
+    >
+    <div class="review-library">
+      <Button
+        class="w-full justify-start gap-2"
+        onclick={() => {
+          libraryOpen = false
+          setupOpen = true
+        }}
+        disabled={busy || deleting}><Images size={17} /> New review</Button
+      >
+      <div class="mt-7 flex items-center justify-between">
+        <span class="section-label">REVIEWS</span><span
+          class="text-xs text-slate-400">{appState.imports.length}</span
+        >
+      </div>
+      <div class="review-list">
+        {#each appState.imports as item (item.id)}<div class="review-row">
+            <button
+              class="review-select"
+              class:active={importId === item.id}
+              disabled={busy || deleting}
+              onclick={() =>
+                run(async () => {
+                  importId = item.id
+                  index = 0
+                  await loadPhotos()
+                  libraryOpen = false
+                })}
+              >{#if item.source === 'google'}<Cloud
+                  size={18}
+                />{:else}<FolderOpen size={18} />{/if}
+              <span
+                ><strong>{reviewLabel(item)}</strong><small
+                  >{fmt(item.count)} photos{item.status === 'complete'
+                    ? ''
+                    : ' · Paused'}</small
+                ></span
+              >
+              {#if importId === item.id}<span class="active-dot"></span>{/if}
+            </button>
+            <button
+              class="review-remove"
+              aria-label={'Remove review ' + reviewLabel(item)}
+              title="Remove review"
+              disabled={busy || deleting || importing}
+              onclick={() => {
+                error = ''
+                libraryOpen = false
+                reviewToRemove = item
+                removeReviewOpen = true
+              }}><X size={16} /></button
+            >
+          </div>{/each}
+      </div>
+      {#if !appState.imports.length}<p
+          class="mt-4 text-sm leading-relaxed text-slate-400"
+        >
+          No reviews yet.
+        </p>{/if}
+      {#if job}<details class="review-filters">
+          <summary><ListFilter size={15} /> Filters</summary>
+          <div class="filter-fields">
+            <label class="check-label"
+              ><Checkbox
+                bind:checked={matchOnly}
+                disabled={job.source === 'local' || busy || deleting}
+              /><span>Match backup</span></label
+            ><label class="check-label mt-3"
+              ><Checkbox
+                bind:checked={useList}
+                disabled={busy || deleting}
+              /><span>Filename list</span></label
+            >{#if useList}<Textarea
+                class="mt-3 h-28 text-xs"
+                bind:value={filenamesText}
+                placeholder="IMG-20260713-WA0019.jpg"
+              /><label class="mt-2 block text-xs text-slate-500"
+                >Load .txt or .json<input
+                  type="file"
+                  accept=".txt,.json"
+                  onchange={uploadNames}
+                  class="mt-1 w-full text-xs"
+                /></label
+              >{/if}<Button
+              variant="outline"
+              size="sm"
+              class="mt-4 w-full"
+              disabled={busy || deleting}
+              onclick={() =>
+                run(async () => {
+                  index = 0
+                  await loadPhotos()
+                })}><ListFilter size={14} /> Apply filters</Button
+            >
+          </div>
+        </details>{/if}
+      <div
+        class="sidebar-bottom"
+        title="Local backup · originals are never changed"
+      >
+        <FolderOpen size={15} /><span
+          >{fmt(appState.localCount)} local photos</span
+        >
+      </div>
+    </div>
+  </Dialog.Content>
+</Dialog.Root>
 <Dialog.Root bind:open={setupOpen}
   ><Dialog.Content class="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
     ><Dialog.Header

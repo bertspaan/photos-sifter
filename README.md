@@ -132,3 +132,7 @@ Tests use fake IndexedDB, mocked file handles and mock Google responses. They co
 ## Remove old reviews
 
 Use the × button beside a review in the sidebar, then confirm **Remove review**. This removes the review and its list membership from this browser. Photos, saved keep/delete decisions, undo history and deletion status remain available, including when another review contains the same photos or you import them again. Removing a review never contacts Google Photos or changes local files.
+
+## Photo context
+
+The compact header selector switches reviews; the adjacent filter icon opens review management and filename filters. The full-width photo area shows the current photo with its two immediate predecessors and successors in the review, including photos already kept or marked. Clicking a neighbor opens it; if it is outside the selected decision tab, the app switches to All. Neighbor images and the next two photos in the active queue preload at main-preview resolution and reuse the existing bounded memory cache. No photos are marked by preloading or navigating.

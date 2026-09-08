@@ -181,7 +181,7 @@ button:disabled {
 }
 .workspace {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 64px);
 }
 .sidebar {
@@ -323,7 +323,7 @@ button:disabled {
   line-height: 1.5;
 }
 .review-main {
-  max-width: 1500px;
+  max-width: none;
   width: 100%;
   margin: 0 auto;
   padding: 0 36px 24px;
@@ -764,7 +764,7 @@ a:focus-visible {
 }
 @media (max-width: 1100px) {
   .workspace {
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .review-main {
     padding: 0 24px 24px;
@@ -947,6 +947,145 @@ a:focus-visible {
   }
   .deletion-summary {
     margin-left: auto;
+  }
+}
+/* The review selector stays compact; the photo context owns the full workspace. */
+.review-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-left: 16px;
+}
+.review-switcher select {
+  width: 230px;
+  max-width: 24vw;
+  min-width: 0;
+  height: 32px;
+  padding: 4px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.review-library .review-list {
+  max-height: 35vh;
+}
+.photo-stage.has-context {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.6fr) minmax(0, 0.8fr) minmax(0, 2.5fr)
+    minmax(0, 0.8fr) minmax(0, 0.6fr);
+  align-items: stretch;
+  gap: 12px;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+.current-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #141b29;
+  box-shadow: 0 8px 20px -12px #0f172a60;
+}
+.context-frame {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+.context-photo {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 82%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #e2e7ee;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+.outer-context .context-photo {
+  height: 66%;
+  opacity: 0.6;
+}
+.context-photo:hover,
+.context-photo:focus-visible {
+  opacity: 1;
+}
+.context-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.context-decision {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffffffeb;
+  color: #475569;
+}
+.review-footer .deletion-summary {
+  margin-left: auto;
+}
+@media (min-width: 801px) {
+  .review-main {
+    padding-inline: 16px;
+  }
+}
+@media (max-width: 800px) {
+  .app-header {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 16px;
+  }
+  .app-header h1 {
+    font-size: 16px;
+  }
+  .review-switcher {
+    order: 3;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+  .review-switcher select {
+    flex: 1;
+    width: auto;
+    max-width: none;
+  }
+  .photo-stage.has-context {
+    grid-template-columns:
+      minmax(0, 0.25fr) minmax(0, 0.35fr) minmax(0, 2.5fr)
+      minmax(0, 0.35fr) minmax(0, 0.25fr);
+    gap: 4px;
+  }
+  .context-photo {
+    border-radius: 5px;
+  }
+  .context-decision {
+    bottom: 3px;
+    right: 3px;
+    width: 18px;
+    height: 18px;
+  }
+  .context-decision svg {
+    width: 11px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -153,25 +153,28 @@ function mockBridge() {
   })
 }
 describe('browser preview loading', () => {
-  it('coalesces requests and caches image bytes without requesting Google URLs from the app', async () => {
-    const bridge = mockBridge(),
-      loader = new PreviewLoader(bridge)
-    const [a, b] = await Promise.all([
-      loader.load(photo, 320),
-      loader.load(photo, 320)
-    ])
-    expect(a).toBe(b)
-    expect(a.type).toBe('image/png')
-    expect(new Uint8Array(await a.arrayBuffer())).toEqual(bytes)
-    expect(await loader.load(photo, 320)).toBe(a)
-    expect(bridge.mock.calls.map((c) => c[0])).toEqual(['ping', 'preview'])
-    expect(bridge.mock.calls[1][1]).toEqual({
-      account,
-      tabId: 1,
-      mediaKey,
-      size: 320
-    })
-  })
+  it.each([320, 1600] as const)(
+    'reuses prefetched %i-pixel previews without another image request',
+    async (size) => {
+      const bridge = mockBridge(),
+        loader = new PreviewLoader(bridge)
+      const [a, b] = await Promise.all([
+        loader.load(photo, size),
+        loader.load(photo, size)
+      ])
+      expect(a).toBe(b)
+      expect(a.type).toBe('image/png')
+      expect(new Uint8Array(await a.arrayBuffer())).toEqual(bytes)
+      expect(await loader.load(photo, size)).toBe(a)
+      expect(bridge.mock.calls.map((c) => c[0])).toEqual(['ping', 'preview'])
+      expect(bridge.mock.calls[1][1]).toEqual({
+        account,
+        tabId: 1,
+        mediaKey,
+        size
+      })
+    }
+  )
   it('tells users to reload an outdated companion', async () => {
     const loader = new PreviewLoader(async () => ({ tabs: [] }))
     await expect(loader.load(photo, 320)).rejects.toThrow('0.2.2')
