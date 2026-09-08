@@ -48,6 +48,7 @@
     restoreWorkspace
   } from '$lib/browser/backup'
   import PhotoImage from '$lib/components/PhotoImage.svelte'
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import { previews } from '$lib/browser/previews'
   import { parseFilenames } from '$lib/domain'
   import type { Photo, AppState, ImportJob, Decision } from '$lib/types'
@@ -522,7 +523,7 @@
     const el = e.target as HTMLElement
     if (
       el.closest(
-        'input,textarea,select,summary,[contenteditable="true"],[role="combobox"],[role="dialog"],[role="alertdialog"]'
+        'input,textarea,select,summary,[contenteditable="true"],[role="combobox"],[role="switch"],[role="dialog"],[role="alertdialog"]'
       )
     )
       return
@@ -798,6 +799,7 @@
         >
       </div>{/if}
     <div class="header-actions">
+      <ThemeToggle />
       <span
         class="saved-indicator"
         title="Decisions are saved in this browser"
@@ -892,7 +894,7 @@
           >
         </div>{/if}
       {#if importing}<div
-          class="mb-4 flex items-center gap-2 text-sm text-indigo-600"
+          class="mb-4 flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-300"
         >
           <LoaderCircle size={16} class="animate-spin" /> Importing… {fmt(
             job?.count || 0
@@ -900,7 +902,9 @@
             ? `, ${fmt(skippedVideos)} videos skipped`
             : ''}.
         </div>{/if}
-      {#if job?.error && !importing}<p class="mb-4 text-sm text-amber-700">
+      {#if job?.error && !importing}<p
+          class="mb-4 text-sm text-amber-700 dark:text-amber-300"
+        >
           Import paused: {job.error}
         </p>{/if}
       <div class="review-tabs" role="tablist" aria-label="Review decisions">
@@ -1179,7 +1183,8 @@
                 class="mt-3 h-28 text-xs"
                 bind:value={filenamesText}
                 placeholder="IMG-20260713-WA0019.jpg"
-              /><label class="mt-2 block text-xs text-slate-500"
+              /><label
+                class="mt-2 block text-xs text-slate-500 dark:text-slate-400"
                 >Load .txt or .json<input
                   type="file"
                   accept=".txt,.json"
@@ -1267,7 +1272,7 @@
                   >{/each}</select
               ></label
             >{:else}<button
-              class="mt-3 text-sm text-indigo-600 underline underline-offset-4"
+              class="mt-3 text-sm text-indigo-600 dark:text-indigo-300 underline underline-offset-4"
               onclick={() => (helpOpen = true)}
               >How to install the extension</button
             >{/if}
@@ -1331,7 +1336,9 @@
                 variant="ghost"
                 onclick={() => indexController?.abort()}>Cancel indexing</Button
               >{/if}
-            {#if !folderSupported}<p class="mt-3 text-amber-700">
+            {#if !folderSupported}<p
+                class="mt-3 text-amber-700 dark:text-amber-300"
+              >
                 Folder selection needs Chrome or Edge. Google imports and saved
                 reviews can still be used in supported browsers.
               </p>{/if}
@@ -1383,7 +1390,7 @@
           /></label
         >
       </div>
-      <div class="mt-3 text-xs text-slate-500">
+      <div class="mt-3 text-xs text-slate-500 dark:text-slate-400">
         {persistent
           ? 'Persistent storage granted. Clearing site data still removes this workspace.'
           : 'Browser storage may be cleared. Keep a workspace export as a backup.'}
@@ -1409,7 +1416,7 @@
           ? 'Start local review'
           : 'Import & start review'}<ArrowRight size={16} /></Button
       ></Dialog.Footer
-    >{#if error}<p role="alert" class="text-sm text-red-600">
+    >{#if error}<p role="alert" class="text-sm text-red-600 dark:text-red-400">
         {error}
       </p>{/if}</Dialog.Content
   ></Dialog.Root
@@ -1426,13 +1433,15 @@
     </AlertDialog.Header>
     {#if reviewToRemove}<div class="rounded-lg border p-3 text-sm">
         <strong>{reviewLabel(reviewToRemove)}</strong>
-        <p class="mt-1 text-slate-500">
+        <p class="mt-1 text-slate-500 dark:text-slate-400">
           {fmt(reviewToRemove.count)} photos · Created {new Date(
             reviewToRemove.created
           ).toLocaleString()}
         </p>
       </div>{/if}
-    {#if error}<p role="alert" class="text-sm text-red-600">{error}</p>{/if}
+    {#if error}<p role="alert" class="text-sm text-red-600 dark:text-red-400">
+        {error}
+      </p>{/if}
     <AlertDialog.Footer>
       <AlertDialog.Cancel disabled={busy}>Cancel</AlertDialog.Cancel>
       <Button
@@ -1459,7 +1468,7 @@
     >
     {#if preview}<div class="flex items-center justify-between gap-3 text-sm">
         <Badge variant="outline">{preview.photos[0]?.account}</Badge><span
-          class="text-slate-500"
+          class="text-slate-500 dark:text-slate-400"
           >{marked.length > 100
             ? 'First 100 marked photos · '
             : ''}{loadedImages.length} of {preview.photos.length} previews loaded</span
@@ -1481,12 +1490,18 @@
             /><span title={p.filename}>{p.filename}</span>
           </div>{/each}
       </div>{/if}
-    {#if failedImages.length}<p class="text-sm text-red-600">
+    {#if failedImages.length}<p class="text-sm text-red-600 dark:text-red-400">
         Some previews could not be loaded. Cancel and check those photos before
         deleting.
-      </p>{/if}{#if error}<p role="alert" class="text-sm text-red-600">
+      </p>{/if}{#if error}<p
+        role="alert"
+        class="text-sm text-red-600 dark:text-red-400"
+      >
         {error}
-      </p>{/if}{#if deleting}<p role="status" class="text-sm text-indigo-600">
+      </p>{/if}{#if deleting}<p
+        role="status"
+        class="text-sm text-indigo-600 dark:text-indigo-300"
+      >
         {deletionProgress} Keep both tabs open.
       </p>{/if}
     <AlertDialog.Footer
@@ -1555,7 +1570,8 @@
               href="https://photos.google.com"
               target="_blank"
               rel="noreferrer"
-              class="text-indigo-600 underline">Google Photos</a
+              class="text-indigo-600 dark:text-indigo-300 underline"
+              >Google Photos</a
             > and sign in.
           </li>
           <li>
@@ -1567,7 +1583,9 @@
           </li>
         </ol>
       </div>
-      <p class="rounded-lg bg-amber-50 p-3 text-amber-900">
+      <p
+        class="rounded-lg bg-amber-50 dark:bg-amber-950 p-3 text-amber-900 dark:text-amber-200"
+      >
         The connector uses Google Photos’ undocumented website API. If Google
         changes it, imports pause and uncertain deletions require verification.
         Never use “empty trash” during this review.
