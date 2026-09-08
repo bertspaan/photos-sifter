@@ -500,9 +500,9 @@
     })
   }
   function navigate(delta: number) {
-    index = Math.max(0, Math.min(queue.length - 1, index + delta))
-    currentFailed = false
-    persist()
+    if (!current || busy || deleting) return
+    const photo = reviewPhotos[currentPosition - 1 + delta]
+    if (photo) showContextPhoto(photo)
   }
   function handleKey(e: KeyboardEvent) {
     if (
@@ -529,8 +529,10 @@
     const key = e.key.toLowerCase()
     if (['k', 'y', 'arrowright', 'd', 'n', 'arrowleft', ' ', 'z'].includes(key))
       e.preventDefault()
-    if (['k', 'y', 'arrowright'].includes(key)) void decide('keep')
-    else if (['d', 'n', 'arrowleft'].includes(key)) void decide('delete')
+    if (key === 'arrowleft') navigate(-1)
+    else if (key === 'arrowright') navigate(1)
+    else if (['k', 'y'].includes(key)) void decide('keep')
+    else if (['d', 'n'].includes(key)) void decide('delete')
     else if (key === ' ') void decide('unsure')
     else if (key === 'z') void undo()
   }
@@ -968,12 +970,14 @@
             <button
               class="stage-nav prev"
               aria-label="Previous photo"
-              disabled={index === 0 || busy || deleting}
+              disabled={currentPosition <= 1 || busy || deleting}
               onclick={() => navigate(-1)}><ChevronLeft size={22} /></button
             ><button
               class="stage-nav next"
               aria-label="Next photo without deciding"
-              disabled={index >= queue.length - 1 || busy || deleting}
+              disabled={currentPosition >= reviewPhotos.length ||
+                busy ||
+                deleting}
               onclick={() => navigate(1)}><ChevronRight size={22} /></button
             >
           </div>
@@ -1515,7 +1519,8 @@
       <div>
         <h3 class="font-semibold mb-2">Keyboard controls</h3>
         <div class="shortcut-grid">
-          <kbd>K / Y / →</kbd><span>Keep photo</span><kbd>D / N / ←</kbd><span
+          <kbd>← / →</kbd><span>Previous / next photo</span>
+          <kbd>K / Y</kbd><span>Keep photo</span><kbd>D / N</kbd><span
             >Mark for deletion</span
           ><kbd>Space</kbd><span>Unsure, decide later</span><kbd>Z</kbd><span
             >Undo the last decision</span

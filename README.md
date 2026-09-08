@@ -79,14 +79,15 @@ Imports save page by page and can be paused and resumed. The counter measures im
 
 ## Review controls
 
-| Key                 | Action                           |
-| ------------------- | -------------------------------- |
-| K / Y / right arrow | Keep                             |
-| D / N / left arrow  | Mark for deletion                |
-| Space               | Unsure                           |
-| Z                   | Undo the last remaining decision |
+| Key                | Action                           |
+| ------------------ | -------------------------------- |
+| Left / right arrow | Previous / next photo            |
+| K / Y              | Keep                             |
+| D / N              | Mark for deletion                |
+| Space              | Unsure                           |
+| Z                  | Undo the last remaining decision |
 
-The same actions have mouse buttons. Previous/next controls navigate without deciding. Shortcuts are disabled while typing or using a modal. Each decision is saved in an IndexedDB transaction before advancing. Reimporting a Google photo in the same account preserves its decision. Conflicting writes from another tab are rejected; return focus to the app to refresh its state.
+The same actions have mouse buttons. Arrow keys and previous/next buttons navigate to the neighboring photos without deciding, including photos already reviewed. Like clicking a context photo, navigating outside the active decision filter switches to All. Shortcuts are disabled while typing or using a modal. Each decision is saved in an IndexedDB transaction before advancing. Reimporting a Google photo in the same account preserves its decision. Conflicting writes from another tab are rejected; return focus to the app to refresh its state.
 
 ## Delete only after a preview
 
